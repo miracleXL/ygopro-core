@@ -53,6 +53,7 @@ workspace "ocgcoredll"
     filter "system:linux"
         defines { "LUA_USE_LINUX" }
         pic "On"
+        linkoptions { "-static-libgcc", "-static-libstdc++" }
 
 filter {}
 
