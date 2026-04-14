@@ -5,10 +5,10 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+  # push:
+  #   branches: [ "master" ]
+  # pull_request:
+  #   branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -80,11 +80,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
 
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-multilib g++-multilib
+        sudo apt-get install -y cmake gcc-multilib g++-multilib
 
     - name: Download lua
       id: lua
@@ -97,37 +99,24 @@ jobs:
         tar -xzf ${{ steps.lua.outputs.filepath }}
         mv lua-5.4.8 lua
 
-    - name: Download premake
-      id: premake
-      uses: mercury233/action-cache-download-file@0e2b8bab566270adae95bd3cd298744402b667eb
-      with:
-        url: https://github.com/premake/premake-core/releases/download/v5.0.0-beta4/premake-5.0.0-beta4-linux.tar.gz
-
-    - name: Premake
+    - name: Build x64
       run: |
-        mkdir premake-5
-        tar -C premake-5 -xzf ${{ steps.premake.outputs.filepath }}
-        cp premake/lua.lua lua/premake5.lua
-        cp premake/dll.lua dll.lua
-        chmod +x premake-5/premake5
-        ./premake-5/premake5 gmake --file=dll.lua
+        mkdir -p build-x64
+        cd build-x64
+        cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+        make -j 4
 
     - name: Build x32
       run: |
-        cd build
-        make -j $(nproc) config=release_x32
-        cd ..
-
-    - name: Build x64
-      run: |
-        cd build
-        make -j $(nproc) config=release_x64
-        cd ..
+        mkdir -p build-x32
+        cd build-x32
+        cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" ..
+        make -j 4
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
       with:
         name: ocgcore-linux
         path: |
-          build/bin/x32/Release/libocgcore.so
-          build/bin/x64/Release/libocgcore.so
+          build-x64/libocgcore.so
+          build-x32/libocgcore.so
